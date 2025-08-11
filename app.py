@@ -100,7 +100,7 @@ def load_css():
     /* Button styling */
     .stButton > button {
         background: linear-gradient(45deg, #ff6b9d, #ffa8cc);
-        color: white;
+        color: white !important;
         border: none;
         border-radius: 25px;
         padding: 10px 30px;
@@ -114,17 +114,73 @@ def load_css():
         box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
     }
     
-    /* Input styling */
+    /* Input styling - Fixed for better visibility */
     .stTextInput > div > div > input {
-        border-radius: 15px;
-        border: 2px solid #ffb3d1;
-        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px !important;
+        border: 2px solid #ffb3d1 !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        color: #000000 !important;
     }
     
     .stTextArea > div > div > textarea {
-        border-radius: 15px;
-        border: 2px solid #ffb3d1;
-        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px !important;
+        border: 2px solid #ffb3d1 !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        color: #000000 !important;
+    }
+    
+    /* Selectbox styling - Fixed for better visibility */
+    .stSelectbox > div > div > div {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 2px solid #ffb3d1 !important;
+        border-radius: 15px !important;
+        color: #000000 !important;
+    }
+    
+    .stSelectbox > div > div > div > div {
+        color: #000000 !important;
+    }
+    
+    /* Selectbox dropdown options */
+    .stSelectbox [role="listbox"] {
+        background: white !important;
+        border: 2px solid #ffb3d1 !important;
+        border-radius: 15px !important;
+    }
+    
+    .stSelectbox [role="option"] {
+        color: #000000 !important;
+        background: white !important;
+    }
+    
+    .stSelectbox [role="option"]:hover {
+        background: #ffe6f0 !important;
+        color: #000000 !important;
+    }
+    
+    .stSelectbox [aria-selected="true"] {
+        background: #ffccdd !important;
+        color: #000000 !important;
+    }
+    
+    /* Date input styling */
+    .stDateInput > div > div > input {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 2px solid #ffb3d1 !important;
+        border-radius: 15px !important;
+        color: #000000 !important;
+    }
+    
+    /* File uploader styling */
+    .stFileUploader > div > div {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 2px solid #ffb3d1 !important;
+        border-radius: 15px !important;
+        color: #000000 !important;
+    }
+    
+    .stFileUploader label {
+        color: #000000 !important;
     }
     
     /* Date styling */
@@ -147,30 +203,66 @@ def load_css():
         font-weight: 600;
     }
     
-    /* General text styling */
+    /* General text styling - Make sure all text is black */
     .stApp, .stApp * {
         color: #000000 !important;
     }
     
-    /* Make sure all text is black */
+    /* Specific text elements */
     p, h1, h2, h3, h4, h5, h6, span, div, label {
         color: #000000 !important;
+    }
+    
+    /* Input labels */
+    .stTextInput > label, 
+    .stTextArea > label, 
+    .stSelectbox > label, 
+    .stDateInput > label,
+    .stFileUploader > label {
+        color: #000000 !important;
+        font-weight: 600;
     }
     
     /* Tab text styling */
     .stTabs [data-baseweb="tab"] {
         color: #000000 !important;
         font-weight: 600;
+        background: rgba(255, 255, 255, 0.7) !important;
+        border-radius: 10px 10px 0 0 !important;
+        margin-right: 2px !important;
     }
     
     /* Selected tab */
     .stTabs [aria-selected="true"] {
         color: #d63384 !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        font-weight: 700;
+    }
+    
+    /* Tab content background */
+    .stTabs [data-baseweb="tab-panel"] {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 0 15px 15px 15px !important;
+        padding: 20px !important;
     }
     
     /* Sidebar styling */
     .css-1d391kg {
         background: linear-gradient(180deg, #ffeef7, #f8e8ff);
+    }
+    
+    /* Ensure dropdown menus are visible */
+    [data-baseweb="popover"] {
+        background: white !important;
+    }
+    
+    /* Fix for any remaining invisible text */
+    * {
+        color: inherit !important;
+    }
+    
+    .stMarkdown {
+        color: #000000 !important;
     }
     
     /* Hide Streamlit branding */
@@ -261,37 +353,11 @@ def create_sample_data():
         }
     ]
     
-    # Sample timeline
-    sample_timeline = [
-        {
-            "date": "2022-12-20",
-            "title": "First Meeting",
-            "description": "The day our eyes first met and my heart skipped a beat 💓"
-        },
-        {
-            "date": "2023-01-14", 
-            "title": "First Date",
-            "description": "Coffee, nervous laughter, and the beginning of forever ☕❤️"
-        },
-        {
-            "date": "2023-02-14",
-            "title": "Valentine's Day",
-            "description": "Our first Valentine's Day together - absolutely magical! 🌹"
-        },
-        {
-            "date": "2023-06-15",
-            "title": "Six Months Anniversary",
-            "description": "Celebrating half a year of pure happiness together 🎉💕"
-        }
-    ]
-    
     # Save sample data if files don't exist
     if not os.path.exists("data/photos.json"):
         save_json("photos.json", sample_photos)
     if not os.path.exists("data/letters.json"):
         save_json("letters.json", sample_letters)
-    if not os.path.exists("data/timeline.json"):
-        save_json("timeline.json", sample_timeline)
 
 # Login functions
 def login_page():
@@ -349,80 +415,165 @@ def admin_mode():
     
     st.markdown("---")
     
-    tab1, tab2, tab3 = st.tabs(["📷 Add Photos", "💌 Write Letters", "⏰ Add Timeline Events"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📷 Add Photos", "💌 Write Letters", "🗑️ Manage Photos", "🗑️ Manage Letters"])
     
     with tab1:
-        st.markdown('<h2 class="section-title">Add New Photo</h2>', unsafe_allow_html=True)
-        
-        uploaded_file = st.file_uploader("Choose a photo", type=['png', 'jpg', 'jpeg'])
-        photo_date = st.date_input("Photo Date", value=date.today())
-        caption = st.text_area("Caption for this photo", placeholder="Describe this beautiful memory...")
-        
-        if st.button("Save Photo", key="save_photo"):
-            if uploaded_file and caption:
-                # Save the uploaded file
-                filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
-                filepath = os.path.join("photos", filename)
-                
-                with open(filepath, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                
-                # Save metadata
-                photos = load_json("photos.json")
-                photos.append({
-                    "filename": filename,
-                    "date": photo_date.strftime("%Y-%m-%d"),
-                    "caption": caption,
-                    "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
-                save_json("photos.json", photos)
-                
-                st.markdown('<div class="success-message">📸 Photo saved successfully! 💕</div>', unsafe_allow_html=True)
-            else:
-                st.error("Please select a photo and add a caption!")
+        add_photo_section()
     
     with tab2:
-        st.markdown('<h2 class="section-title">Write a Love Letter</h2>', unsafe_allow_html=True)
-        
-        letter_date = st.date_input("Letter Date", value=date.today(), key="letter_date")
-        title = st.text_input("Letter Title", placeholder="Give your letter a beautiful title...")
-        content = st.text_area("Letter Content", height=200, placeholder="Pour your heart out here...")
-        
-        if st.button("Save Letter", key="save_letter"):
-            if title and content:
-                letters = load_json("letters.json")
-                letters.append({
-                    "date": letter_date.strftime("%Y-%m-%d"),
-                    "title": title,
-                    "content": content,
-                    "created_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
-                save_json("letters.json", letters)
-                
-                st.markdown('<div class="success-message">💌 Letter saved successfully! 💕</div>', unsafe_allow_html=True)
-            else:
-                st.error("Please add both title and content!")
+        add_letter_section()
     
     with tab3:
-        st.markdown('<h2 class="section-title">Add Timeline Event</h2>', unsafe_allow_html=True)
-        
-        event_date = st.date_input("Event Date", value=date.today(), key="event_date")
-        event_title = st.text_input("Event Title", placeholder="What happened on this special day?")
-        description = st.text_area("Description", placeholder="Describe this milestone in your relationship...")
-        
-        if st.button("Save Event", key="save_event"):
-            if event_title and description:
-                timeline = load_json("timeline.json")
-                timeline.append({
-                    "date": event_date.strftime("%Y-%m-%d"),
-                    "title": event_title,
-                    "description": description
-                })
-                save_json("timeline.json", timeline)
-                
-                st.markdown('<div class="success-message">⏰ Timeline event saved successfully! 💕</div>', unsafe_allow_html=True)
-            else:
-                st.error("Please add both title and description!")
+        manage_photos_section()
+    
+    with tab4:
+        manage_letters_section()
+
+def add_photo_section():
+    st.markdown('<h2 class="section-title">Add New Photo</h2>', unsafe_allow_html=True)
+    
+    uploaded_file = st.file_uploader("Choose a photo", type=['png', 'jpg', 'jpeg'])
+    photo_date = st.date_input("Photo Date", value=date.today())
+    caption = st.text_area("Caption for this photo", placeholder="Describe this beautiful memory...")
+    
+    if st.button("Save Photo", key="save_photo"):
+        if uploaded_file and caption:
+            # Save the uploaded file
+            filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
+            filepath = os.path.join("photos", filename)
+            
+            with open(filepath, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            # Save metadata
+            photos = load_json("photos.json")
+            photos.append({
+                "filename": filename,
+                "date": photo_date.strftime("%Y-%m-%d"),
+                "caption": caption,
+                "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            save_json("photos.json", photos)
+            
+            st.markdown('<div class="success-message">📸 Photo saved successfully! 💕</div>', unsafe_allow_html=True)
+        else:
+            st.error("Please select a photo and add a caption!")
+
+def add_letter_section():
+    st.markdown('<h2 class="section-title">Write a Love Letter</h2>', unsafe_allow_html=True)
+    
+    letter_date = st.date_input("Letter Date", value=date.today(), key="letter_date")
+    title = st.text_input("Letter Title", placeholder="Give your letter a beautiful title...")
+    content = st.text_area("Letter Content", height=200, placeholder="Pour your heart out here...")
+    
+    if st.button("Save Letter", key="save_letter"):
+        if title and content:
+            letters = load_json("letters.json")
+            letters.append({
+                "date": letter_date.strftime("%Y-%m-%d"),
+                "title": title,
+                "content": content,
+                "created_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            save_json("letters.json", letters)
+            
+            st.markdown('<div class="success-message">💌 Letter saved successfully! 💕</div>', unsafe_allow_html=True)
+        else:
+            st.error("Please add both title and content!")
+
+def manage_photos_section():
+    st.markdown('<h2 class="section-title">Manage Photos 🗑️</h2>', unsafe_allow_html=True)
+    
+    photos = load_json("photos.json")
+    photos.sort(key=lambda x: x['date'], reverse=True)
+    
+    if not photos:
+        st.markdown("""
+        <div class="memory-card">
+            <h3 style="text-align: center; color: #666;">No photos to manage! 📸</h3>
+            <p style="text-align: center; color: #888;">Add some photos first...</p>
+        </div>
+        """, unsafe_allow_html=True)
+        return
+    
+    st.markdown("### Current Photos")
+    
+    for idx, photo in enumerate(photos):
+        with st.container():
+            col1, col2, col3 = st.columns([2, 3, 1])
+            
+            with col1:
+                photo_path = os.path.join("photos", photo['filename'])
+                if os.path.exists(photo_path):
+                    try:
+                        image = Image.open(photo_path)
+                        st.image(image, width=150)
+                    except Exception as e:
+                        st.markdown("📷 Photo preview unavailable")
+                else:
+                    st.markdown("📷 Sample Photo")
+            
+            with col2:
+                st.markdown(f"**Date:** {photo['date']}")
+                st.markdown(f"**Caption:** {photo['caption']}")
+                st.markdown(f"**Uploaded:** {photo.get('upload_date', 'Unknown')}")
+            
+            with col3:
+                if st.button("🗑️ Delete", key=f"delete_photo_{idx}"):
+                    # Delete the photo file if it exists
+                    photo_path = os.path.join("photos", photo['filename'])
+                    if os.path.exists(photo_path):
+                        try:
+                            os.remove(photo_path)
+                        except Exception as e:
+                            st.error(f"Could not delete photo file: {e}")
+                    
+                    # Remove from JSON
+                    photos.pop(idx)
+                    save_json("photos.json", photos)
+                    
+                    st.markdown('<div class="success-message">📸 Photo deleted successfully! 💕</div>', unsafe_allow_html=True)
+                    st.rerun()
+            
+            st.markdown("---")
+
+def manage_letters_section():
+    st.markdown('<h2 class="section-title">Manage Letters 🗑️</h2>', unsafe_allow_html=True)
+    
+    letters = load_json("letters.json")
+    letters.sort(key=lambda x: x['date'], reverse=True)
+    
+    if not letters:
+        st.markdown("""
+        <div class="memory-card">
+            <h3 style="text-align: center; color: #666;">No letters to manage! 💌</h3>
+            <p style="text-align: center; color: #888;">Write some letters first...</p>
+        </div>
+        """, unsafe_allow_html=True)
+        return
+    
+    st.markdown("### Current Letters")
+    
+    for idx, letter in enumerate(letters):
+        with st.container():
+            st.markdown(f"""
+            <div class="memory-card">
+                <div class="memory-date">{letter['date']}</div>
+                <h3 style="color: #d63384; font-family: 'Dancing Script', cursive; font-size: 1.8em; margin-bottom: 15px;">{letter['title']}</h3>
+                <p style="line-height: 1.6; color: #555; font-size: 1.0em;">{letter['content'][:200]}{'...' if len(letter['content']) > 200 else ''}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("🗑️ Delete Letter", key=f"delete_letter_{idx}"):
+                    letters.pop(idx)
+                    save_json("letters.json", letters)
+                    
+                    st.markdown('<div class="success-message">💌 Letter deleted successfully! 💕</div>', unsafe_allow_html=True)
+                    st.rerun()
+            
+            st.markdown("---")
 
 # Viewer Mode Functions
 def viewer_mode():
@@ -438,7 +589,7 @@ def viewer_mode():
     st.markdown("---")
     
     # Navigation
-    tab1, tab2, tab3, tab4 = st.tabs(["📷 Our Photos", "💌 Love Letters", "⏰ Our Timeline", "🎁 Surprise Me!"])
+    tab1, tab2, tab3 = st.tabs(["📷 Our Photos", "💌 Love Letters", "🎁 Surprise Me!"])
     
     with tab1:
         display_photos()
@@ -447,9 +598,6 @@ def viewer_mode():
         display_letters()
     
     with tab3:
-        display_timeline()
-    
-    with tab4:
         surprise_section()
 
 def display_photos():
@@ -510,36 +658,6 @@ def display_letters():
             <div class="memory-date">{letter['date']}</div>
             <h3 style="color: #d63384; font-family: 'Dancing Script', cursive; font-size: 1.8em; margin-bottom: 15px;">{letter['title']}</h3>
             <p style="line-height: 1.6; color: #555; font-size: 1.1em;">{letter['content']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-def display_timeline():
-    st.markdown('<h2 class="section-title">Our Love Timeline ⏰</h2>', unsafe_allow_html=True)
-    
-    timeline = load_json("timeline.json")
-    timeline.sort(key=lambda x: x['date'])
-    
-    if not timeline:
-        st.markdown("""
-        <div class="memory-card">
-            <h3 style="text-align: center; color: #666;">No timeline events yet! ⏰</h3>
-            <p style="text-align: center; color: #888;">Your relationship milestones will appear here soon...</p>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-    
-    for idx, event in enumerate(timeline):
-        # Alternate left and right alignment for visual appeal
-        alignment = "left" if idx % 2 == 0 else "right"
-        
-        st.markdown(f"""
-        <div style="display: flex; justify-content: {alignment}; margin: 30px 0;">
-            <div class="memory-card" style="max-width: 70%; position: relative;">
-                <div class="memory-date">{event['date']}</div>
-                <h3 style="color: #e91e63; font-family: 'Dancing Script', cursive; font-size: 1.6em; margin-bottom: 10px;">{event['title']}</h3>
-                <p style="color: #555; line-height: 1.5;">{event['description']}</p>
-                <div style="position: absolute; {'right' if alignment == 'left' else 'left'}: -15px; top: 20px; width: 30px; height: 30px; background: linear-gradient(45deg, #ff6b9d, #ffa8cc); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2em;">💖</div>
-            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -634,7 +752,3 @@ def main():
     elif st.session_state.user_type == "admin":
         admin_mode()
     elif st.session_state.user_type == "viewer":
-        viewer_mode()
-
-if __name__ == "__main__":
-    main()
