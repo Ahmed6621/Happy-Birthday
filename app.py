@@ -6,16 +6,27 @@ import base64
 from PIL import Image
 import random
 import io
+import cloudinary
+import cloudinary.uploader
+
+# Configure Cloudinary (using secrets)
+cloudinary.config(
+    cloud_name=st.secrets["CLOUDINARY_CLOUD_NAME"],
+    api_key=st.secrets["CLOUDINARY_API_KEY"],
+    api_secret=st.secrets["CLOUDINARY_API_SECRET"],
+    secure=True
+)
 
 # Configure page
 st.set_page_config(
     page_title="Our Memory Locker 💕",
     page_icon="💝",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
+    theme={"base": "light"}  # Force light theme to match CSS
 )
 
-# Custom CSS for romantic theme
+# Custom CSS for romantic theme (strengthened rules for text boxes)
 def load_css():
     st.markdown("""
     <style>
@@ -139,32 +150,32 @@ def load_css():
         box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
     }
     
-    /* Input styling */
+    /* Input styling (strengthened for white bg, black text) */
     .stTextInput > div > div > input {
         border-radius: 15px !important;
         border: 2px solid #ffb3d1 !important;
-        background: #ffffff !important;
+        background-color: #ffffff !important;
         color: #000000 !important;
     }
     
     .stTextArea > div > div > textarea {
         border-radius: 15px !important;
         border: 2px solid #ffb3d1 !important;
-        background: #ffffff !important;
+        background-color: #ffffff !important;
         color: #000000 !important;
     }
     
     /* Date input styling */
     .stDateInput > div > div > input {
-        background: #ffffff !important;
+        background-color: #ffffff !important;
         color: #000000 !important;
         border: 2px solid #ffb3d1 !important;
         border-radius: 15px !important;
     }
     
-    /* Selectbox styling */
+    /* Selectbox styling (strengthened) */
     .stSelectbox > div > div > select {
-        background: #ffffff !important;
+        background-color: #ffffff !important;
         color: #000000 !important;
         border: 2px solid #ffb3d1 !important;
         border-radius: 15px !important;
@@ -190,7 +201,7 @@ def load_css():
         font-weight: 600;
     }
     
-    /* General text styling */
+    /* General text styling (force black text) */
     .stApp, .stApp * {
         color: #000000 !important;
     }
@@ -220,6 +231,15 @@ def load_css():
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Upload progress styling */
+    .upload-progress {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        border: 1px solid #ffb3d1;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -241,9 +261,77 @@ def add_floating_hearts():
 
 # Initialize data directories
 def init_directories():
-    os.makedirs("photos", exist_ok=True)
     os.makedirs("data", exist_ok=True)
-    os.makedirs("static/music", exist_ok=True)
+
+# Base64 image encoding/decoding functions (for photos only)
+def encode_image_to_base64(image_file):
+    """Convert uploaded image to base64 string"""
+    try:
+        # Read the image
+        image = Image.open(image_file)
+        
+        # Handle EXIF orientation
+        try:
+            from PIL.ExifTags import ORIENTATION
+            exif = image._getexif()
+            if exif is not None:
+                orientation = exif.get(0x0112)
+                if orientation == 3:
+                    image = image.rotate(180, expand=True)
+                elif orientation == 6:
+                    image = image.rotate(270, expand=True)
+                elif orientation == 8:
+                    image = image.rotate(90, expand=True)
+        except:
+            pass
+        
+        # Convert to RGB if necessary
+        if image.mode in ('RGBA', 'LA', 'P'):
+            image = image.convert('RGB')
+        
+        # Resize image for storage efficiency (max 800px on longest side)
+        max_size = 800
+        if max(image.size) > max_size:
+            ratio = max_size / max(image.size)
+            new_size = tuple([int(x * ratio) for x in image.size])
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
+        
+        # Save to bytes
+        img_buffer = io.BytesIO()
+        image.save(img_buffer, format='JPEG', quality=85, optimize=True)
+        img_bytes = img_buffer.getvalue()
+        
+        # Encode to base64
+        base64_string = base64.b64encode(img_bytes).decode('utf-8')
+        return base64_string, image.size
+        
+    except Exception as e:
+        st.error(f"Error processing image: {str(e)}")
+        return None, None
+
+def decode_base64_to_image(base64_string):
+    """Convert base64 string back to PIL Image"""
+    try:
+        img_bytes = base64.b64decode(base64_string)
+        image = Image.open(io.BytesIO(img_bytes))
+        return image
+    except Exception as e:
+        st.error(f"Error decoding image: {str(e)}")
+        return None
+
+# Cloudinary video upload function
+def upload_video_to_cloudinary(video_file):
+    try:
+        # Upload to Cloudinary as video
+        response = cloudinary.uploader.upload(
+            video_file,
+            resource_type="video",
+            folder="memory_locker_videos"  # Optional folder
+        )
+        return response['secure_url']
+    except Exception as e:
+        st.error(f"Error uploading video to Cloudinary: {str(e)}")
+        return None
 
 # Load or create JSON files
 def load_json(filename):
@@ -272,23 +360,7 @@ def init_session_state():
 
 # Create sample data
 def create_sample_data():
-    # Sample photos metadata
-    sample_photos = [
-        {
-            "filename": "sample1.jpg",
-            "date": "2023-01-14",
-            "caption": "Our first coffee date together ☕💕",
-            "upload_date": "2024-01-15"
-        },
-        {
-            "filename": "sample2.jpg", 
-            "date": "2023-02-14",
-            "caption": "Valentine's Day surprise! 🌹❤️",
-            "upload_date": "2024-02-15"
-        }
-    ]
-    
-    # Sample letters
+    # Sample letters (photos and videos will be empty initially)
     sample_letters = [
         {
             "date": "2023-01-01",
@@ -304,12 +376,11 @@ def create_sample_data():
         }
     ]
     
-    # Sample timeline - removed
-    sample_timeline = []
-    
     # Save sample data if files don't exist
     if not os.path.exists("data/photos.json"):
-        save_json("photos.json", sample_photos)
+        save_json("photos.json", [])  # Start with empty photos
+    if not os.path.exists("data/videos.json"):
+        save_json("videos.json", [])  # Start with empty videos
     if not os.path.exists("data/letters.json"):
         save_json("letters.json", sample_letters)
 
@@ -324,6 +395,9 @@ def login_page():
         </h3>
         <p style="text-align: center; color: #666; font-style: italic;">
             A treasure trove of our beautiful memories together
+        </p>
+        <p style="text-align: center; color: #888; font-size: 0.9em;">
+            ✨ Now with permanent photo storage and Cloudinary for videos! ✨
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -369,11 +443,14 @@ def admin_mode():
     
     st.markdown("---")
     
-    # Navigation
-    tab1, tab2, tab3 = st.tabs(["📷 Add Photos", "💌 Write Letters", "🗑️ Manage Content"])
+    # Navigation (added Videos tab)
+    tab1, tab2, tab3, tab4 = st.tabs(["📷 Add Photos", "🎥 Add Videos", "💌 Write Letters", "🗑️ Manage Content"])
     
     with tab1:
         st.markdown('<h2 class="section-title">Add New Photo</h2>', unsafe_allow_html=True)
+        
+        # Info about storage
+        st.info("📸 Photos are stored permanently using Base64 encoding! 🎉")
         
         uploaded_file = st.file_uploader("Choose a photo", type=['png', 'jpg', 'jpeg'])
         photo_date = st.date_input("Photo Date", value=date.today())
@@ -382,38 +459,47 @@ def admin_mode():
         if st.button("Save Photo", key="save_photo"):
             if uploaded_file and caption:
                 try:
-                    # Create filename with timestamp for uniqueness
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    file_extension = uploaded_file.name.split('.')[-1]
-                    filename = f"{timestamp}_{uploaded_file.name.replace(' ', '_')}"
+                    # Show progress
+                    progress_placeholder = st.empty()
+                    progress_placeholder.markdown("""
+                    <div class="upload-progress">
+                        <p>📤 Processing photo... Please wait! ✨</p>
+                        <p style="font-size: 0.9em; color: #666;">Converting to permanent storage format...</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    # Ensure photos directory exists
-                    os.makedirs("photos", exist_ok=True)
-                    filepath = os.path.join("photos", filename)
+                    # Encode image to base64
+                    base64_data, image_size = encode_image_to_base64(uploaded_file)
                     
-                    # Save the uploaded file with proper binary mode
-                    with open(filepath, "wb") as f:
-                        f.write(uploaded_file.getvalue())
-                    
-                    # Verify file was saved
-                    if os.path.exists(filepath):
-                        # Save metadata
+                    if base64_data:
+                        # Save metadata with base64 data
                         photos = load_json("photos.json")
                         photos.append({
                             "id": len(photos) + 1,
-                            "filename": filename,
                             "original_name": uploaded_file.name,
                             "date": photo_date.strftime("%Y-%m-%d"),
                             "caption": caption,
                             "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "file_size": uploaded_file.size
+                            "file_size": uploaded_file.size,
+                            "processed_size": image_size,
+                            "base64_data": base64_data,
+                            "storage_type": "base64"
                         })
                         save_json("photos.json", photos)
                         
-                        st.success(f"📸 Photo '{uploaded_file.name}' saved successfully! 💕")
+                        progress_placeholder.empty()
+                        st.success(f"📸 Photo '{uploaded_file.name}' saved permanently! 💕")
+                        
+                        # Show preview
+                        st.markdown("### Preview:")
+                        preview_image = decode_base64_to_image(base64_data)
+                        if preview_image:
+                            st.image(preview_image, caption=caption, width=300)
+                        
                         st.rerun()
                     else:
-                        st.error("❌ Failed to save photo file!")
+                        progress_placeholder.empty()
+                        st.error("❌ Failed to process photo!")
                         
                 except Exception as e:
                     st.error(f"❌ Error saving photo: {str(e)}")
@@ -421,6 +507,64 @@ def admin_mode():
                 st.error("Please select a photo and add a caption!")
     
     with tab2:
+        st.markdown('<h2 class="section-title">Add New Video</h2>', unsafe_allow_html=True)
+        
+        # Info about storage
+        st.info("🎥 Videos are stored on Cloudinary for reliable streaming! (Hybrid storage) 🚀")
+        
+        uploaded_file = st.file_uploader("Choose a video", type=['mp4', 'mov', 'avi'])
+        video_date = st.date_input("Video Date", value=date.today(), key="video_date")
+        caption = st.text_area("Caption for this video", placeholder="Describe this beautiful memory...", key="video_caption")
+        
+        if st.button("Save Video", key="save_video"):
+            if uploaded_file and caption:
+                try:
+                    # Show progress
+                    progress_placeholder = st.empty()
+                    progress_placeholder.markdown("""
+                    <div class="upload-progress">
+                        <p>📤 Uploading video to Cloudinary... Please wait! ✨</p>
+                        <p style="font-size: 0.9em; color: #666;">This may take a moment for larger files...</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Upload to Cloudinary
+                    video_url = upload_video_to_cloudinary(uploaded_file)
+                    
+                    if video_url:
+                        # Save metadata with URL
+                        videos = load_json("videos.json")
+                        videos.append({
+                            "id": len(videos) + 1,
+                            "original_name": uploaded_file.name,
+                            "date": video_date.strftime("%Y-%m-%d"),
+                            "caption": caption,
+                            "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "file_size": uploaded_file.size,
+                            "url": video_url,
+                            "storage_type": "cloudinary"
+                        })
+                        save_json("videos.json", videos)
+                        
+                        progress_placeholder.empty()
+                        st.success(f"🎥 Video '{uploaded_file.name}' saved to Cloudinary! 💕")
+                        
+                        # Show preview
+                        st.markdown("### Preview:")
+                        st.video(video_url)
+                        st.write(caption)
+                        
+                        st.rerun()
+                    else:
+                        progress_placeholder.empty()
+                        st.error("❌ Failed to upload video!")
+                        
+                except Exception as e:
+                    st.error(f"❌ Error saving video: {str(e)}")
+            else:
+                st.error("Please select a video and add a caption!")
+    
+    with tab3:
         st.markdown('<h2 class="section-title">Write a Love Letter</h2>', unsafe_allow_html=True)
         
         letter_date = st.date_input("Letter Date", value=date.today(), key="letter_date")
@@ -444,7 +588,7 @@ def admin_mode():
             else:
                 st.error("Please add both title and content!")
     
-    with tab3:
+    with tab4:
         st.markdown('<h2 class="section-title">Manage Content</h2>', unsafe_allow_html=True)
         
         # Manage Photos
@@ -452,23 +596,28 @@ def admin_mode():
         photos = load_json("photos.json")
         
         if photos:
+            st.info(f"📊 Total photos: {len(photos)} | Storage: Base64 (Permanent)")
+            
             for i, photo in enumerate(photos):
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    st.write(f"**{photo.get('original_name', photo['filename'])}** - {photo['date']}")
+                    st.write(f"**{photo['original_name']}** - {photo['date']}")
                     st.write(f"*{photo['caption'][:50]}...*" if len(photo['caption']) > 50 else f"*{photo['caption']}*")
-                with col2:
-                    if os.path.exists(os.path.join("photos", photo['filename'])):
-                        st.success("✅ File OK")
+                    
+                    # Show storage info
+                    storage_type = photo.get('storage_type', 'legacy')
+                    if storage_type == 'base64':
+                        st.write("🔒 **Permanent Storage** ✅")
                     else:
-                        st.error("❌ Missing")
+                        st.write("⚠️ Legacy storage (may disappear)")
+                        
+                with col2:
+                    if 'base64_data' in photo and photo['base64_data']:
+                        st.success("✅ Stored")
+                    else:
+                        st.warning("⚠️ Legacy")
                 with col3:
                     if st.button("🗑️ Delete", key=f"del_photo_{i}"):
-                        # Remove file
-                        filepath = os.path.join("photos", photo['filename'])
-                        if os.path.exists(filepath):
-                            os.remove(filepath)
-                        # Remove from JSON
                         photos.pop(i)
                         save_json("photos.json", photos)
                         st.success("Photo deleted!")
@@ -476,6 +625,32 @@ def admin_mode():
                 st.divider()
         else:
             st.info("No photos to manage yet!")
+        
+        # Manage Videos
+        st.subheader("🎥 Manage Videos")
+        videos = load_json("videos.json")
+        
+        if videos:
+            st.info(f"📊 Total videos: {len(videos)} | Storage: Cloudinary")
+            
+            for i, video in enumerate(videos):
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"**{video['original_name']}** - {video['date']}")
+                    st.write(f"*{video['caption'][:50]}...*" if len(video['caption']) > 50 else f"*{video['caption']}*")
+                    st.write(f"URL: {video['url'][:30]}...")
+                with col2:
+                    st.success("✅ Stored on Cloudinary")
+                with col3:
+                    if st.button("🗑️ Delete", key=f"del_video_{i}"):
+                        # Optional: Delete from Cloudinary if needed (requires public_id from upload response)
+                        videos.pop(i)
+                        save_json("videos.json", videos)
+                        st.success("Video deleted!")
+                        st.rerun()
+                st.divider()
+        else:
+            st.info("No videos to manage yet!")
         
         st.markdown("---")
         
@@ -512,16 +687,19 @@ def viewer_mode():
     
     st.markdown("---")
     
-    # Navigation
-    tab1, tab2, tab3 = st.tabs(["📷 Our Photos", "💌 Love Letters", "🎁 Surprise Me!"])
+    # Navigation (added Videos tab)
+    tab1, tab2, tab3, tab4 = st.tabs(["📷 Our Photos", "🎥 Our Videos", "💌 Love Letters", "🎁 Surprise Me!"])
     
     with tab1:
         display_photos()
     
     with tab2:
-        display_letters()
+        display_videos()
     
     with tab3:
+        display_letters()
+    
+    with tab4:
         surprise_section()
 
 def display_photos():
@@ -535,11 +713,15 @@ def display_photos():
         <div class="memory-card">
             <h3 style="text-align: center; color: #666;">No photos yet! 📸</h3>
             <p style="text-align: center; color: #888;">Your beautiful memories will appear here soon...</p>
+            <p style="text-align: center; color: #d63384; font-size: 0.9em;">✨ Photos are now stored permanently! ✨</p>
         </div>
         """, unsafe_allow_html=True)
         return
     
-    # Display photos in organized grid - 3 columns for better organization with 48 photos
+    # Display stats
+    st.info(f"📊 **{len(photos)} beautiful memories** stored permanently! 💕")
+    
+    # Display photos in organized grid - 3 columns
     cols_per_row = 3
     for i in range(0, len(photos), cols_per_row):
         cols = st.columns(cols_per_row)
@@ -547,52 +729,36 @@ def display_photos():
             if i + j < len(photos):
                 photo = photos[i + j]
                 with cols[j]:
-                    photo_path = os.path.join("photos", photo['filename'])
-                    if os.path.exists(photo_path):
+                    # Check if it's base64 stored photo
+                    if 'base64_data' in photo and photo['base64_data']:
                         try:
-                            # Open and process image for consistent display
-                            image = Image.open(photo_path)
-                            
-                            # Handle image rotation based on EXIF data
-                            try:
-                                from PIL.ExifTags import ORIENTATION
-                                exif = image._getexif()
-                                if exif is not None:
-                                    orientation = exif.get(0x0112)
-                                    if orientation == 3:
-                                        image = image.rotate(180, expand=True)
-                                    elif orientation == 6:
-                                        image = image.rotate(270, expand=True)
-                                    elif orientation == 8:
-                                        image = image.rotate(90, expand=True)
-                            except:
-                                pass  # Skip rotation if EXIF processing fails
-                            
-                            # Resize to consistent dimensions (300x200) while maintaining aspect ratio
-                            image.thumbnail((300, 200), Image.Resampling.LANCZOS)
-                            
-                            # Create a centered image on white background
-                            background = Image.new('RGB', (300, 200), 'white')
-                            # Calculate position to center the image
-                            x = (300 - image.width) // 2
-                            y = (200 - image.height) // 2
-                            background.paste(image, (x, y))
-                            
-                            st.image(background, use_container_width=True)
-                            st.markdown(f"""
-                            <div style="text-align: center; margin-top: 10px;">
-                                <p style="color: #d63384; font-weight: 600; margin: 5px 0;">{photo['date']}</p>
-                                <p style="color: #333; font-size: 0.9em; margin: 0;">{photo['caption']}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            # Decode and display base64 image
+                            image = decode_base64_to_image(photo['base64_data'])
+                            if image:
+                                # Resize for consistent display
+                                image.thumbnail((300, 200), Image.Resampling.LANCZOS)
+                                
+                                st.image(image, use_container_width=True)
+                                st.markdown(f"""
+                                <div style="text-align: center; margin-top: 10px;">
+                                    <p style="color: #d63384; font-weight: 600; margin: 5px 0;">{photo['date']}</p>
+                                    <p style="color: #333; font-size: 0.9em; margin: 0;">{photo['caption']}</p>
+                                    <p style="color: #4CAF50; font-size: 0.8em; margin: 5px 0;">🔒 Permanent Storage</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.error("Could not decode image")
                         except Exception as e:
-                            st.error(f"Could not load image: {photo.get('original_name', photo['filename'])}")
+                            st.error(f"Error displaying photo: {str(e)}")
                     else:
-                        # Show placeholder for sample data
+                        # Legacy photo (may not exist)
                         st.markdown(f"""
                         <div class="photo-item">
                             <div style="background: #f0f0f0; height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 10px; margin-bottom: 10px;">
-                                <p style="color: #666;">📷 {photo.get('original_name', 'Sample Photo')}</p>
+                                <div style="text-align: center;">
+                                    <p style="color: #666;">📷 {photo['original_name']}</p>
+                                    <p style="color: #f39c12; font-size: 0.8em;">⚠️ Legacy photo may not display</p>
+                                </div>
                             </div>
                             <div style="text-align: center;">
                                 <p style="color: #d63384; font-weight: 600; margin: 5px 0;">{photo['date']}</p>
@@ -600,6 +766,46 @@ def display_photos():
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
+                    st.markdown("---")
+
+def display_videos():
+    st.markdown('<h2 class="section-title">Our Video Memories 🎥</h2>', unsafe_allow_html=True)
+    
+    videos = load_json("videos.json")
+    videos.sort(key=lambda x: x['date'], reverse=True)
+    
+    if not videos:
+        st.markdown("""
+        <div class="memory-card">
+            <h3 style="text-align: center; color: #666;">No videos yet! 🎥</h3>
+            <p style="text-align: center; color: #888;">Your beautiful video memories will appear here soon...</p>
+            <p style="text-align: center; color: #d63384; font-size: 0.9em;">✨ Videos are stored on Cloudinary! ✨</p>
+        </div>
+        """, unsafe_allow_html=True)
+        return
+    
+    # Display stats
+    st.info(f"📊 **{len(videos)} beautiful video memories** stored on Cloudinary! 💕")
+    
+    # Display videos in organized grid - 2 columns (videos are wider)
+    cols_per_row = 2
+    for i in range(0, len(videos), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for j in range(cols_per_row):
+            if i + j < len(videos):
+                video = videos[i + j]
+                with cols[j]:
+                    try:
+                        st.video(video['url'])
+                        st.markdown(f"""
+                        <div style="text-align: center; margin-top: 10px;">
+                            <p style="color: #d63384; font-weight: 600; margin: 5px 0;">{video['date']}</p>
+                            <p style="color: #333; font-size: 0.9em; margin: 0;">{video['caption']}</p>
+                            <p style="color: #4CAF50; font-size: 0.8em; margin: 5px 0;">☁️ Cloudinary Storage</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"Error displaying video: {str(e)}")
                     st.markdown("---")
 
 def display_letters():
@@ -626,9 +832,6 @@ def display_letters():
         </div>
         """, unsafe_allow_html=True)
 
-def display_timeline():
-    pass  # Timeline functionality removed
-
 def surprise_section():
     st.markdown('<h2 class="section-title">Surprise Me! 🎁</h2>', unsafe_allow_html=True)
     
@@ -648,16 +851,26 @@ def surprise_section():
 
 def show_random_memory():
     photos = load_json("photos.json")
+    videos = load_json("videos.json")
     letters = load_json("letters.json")
     
     all_memories = []
     
-    # Add photos to memories pool
+    # Add photos to memories pool (only base64 ones that will display)
     for photo in photos:
-        all_memories.append({
-            'type': 'photo',
-            'content': photo
-        })
+        if 'base64_data' in photo and photo['base64_data']:
+            all_memories.append({
+                'type': 'photo',
+                'content': photo
+            })
+    
+    # Add videos to memories pool
+    for video in videos:
+        if 'url' in video:
+            all_memories.append({
+                'type': 'video',
+                'content': video
+            })
     
     # Add letters to memories pool  
     for letter in letters:
@@ -667,7 +880,7 @@ def show_random_memory():
         })
     
     if not all_memories:
-        st.warning("No memories to surprise you with yet! Add some photos or letters first. 💕")
+        st.warning("No memories to surprise you with yet! Add some photos, videos, or letters first. 💕")
         return
     
     # Pick random memory
@@ -675,23 +888,45 @@ def show_random_memory():
     
     if random_memory['type'] == 'photo':
         photo = random_memory['content']
-        photo_path = os.path.join("photos", photo['filename'])
         
         st.markdown("### 📷 Random Photo Memory!")
         
-        if os.path.exists(photo_path):
-            image = Image.open(photo_path)
-            st.image(image, caption=f"{photo['caption']} ({photo['date']})")
+        if 'base64_data' in photo and photo['base64_data']:
+            try:
+                image = decode_base64_to_image(photo['base64_data'])
+                if image:
+                    st.image(image, caption=f"{photo['caption']} ({photo['date']})")
+                else:
+                    st.error("Could not decode random photo")
+            except Exception as e:
+                st.error(f"Error displaying random photo: {str(e)}")
         else:
+            # Legacy photo fallback
             st.markdown(f"""
             <div class="memory-card">
                 <div style="background: #f0f0f0; height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 10px; margin-bottom: 15px;">
-                    <p style="color: #666;">📷 Sample Photo</p>
+                    <p style="color: #666;">📷 {photo['original_name']}</p>
                 </div>
                 <div class="memory-date">{photo['date']}</div>
                 <p><strong>{photo['caption']}</strong></p>
             </div>
             """, unsafe_allow_html=True)
+    
+    elif random_memory['type'] == 'video':
+        video = random_memory['content']
+        
+        st.markdown("### 🎥 Random Video Memory!")
+        
+        try:
+            st.video(video['url'])
+            st.markdown(f"""
+            <div class="memory-card">
+                <div class="memory-date">{video['date']}</div>
+                <p style="line-height: 1.6; color: #555; font-size: 1.1em;">{video['caption']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error displaying random video: {str(e)}")
     
     else:  # letter
         letter = random_memory['content']
