@@ -550,11 +550,35 @@ def display_photos():
                     photo_path = os.path.join("photos", photo['filename'])
                     if os.path.exists(photo_path):
                         try:
-                            # Open and resize image for consistent display
+                            # Open and process image for consistent display
                             image = Image.open(photo_path)
-                            # Resize to consistent dimensions (300x200)
-                            image = image.resize((300, 200), Image.Resampling.LANCZOS)
-                            st.image(image, use_column_width=True)
+                            
+                            # Handle image rotation based on EXIF data
+                            try:
+                                from PIL.ExifTags import ORIENTATION
+                                exif = image._getexif()
+                                if exif is not None:
+                                    orientation = exif.get(0x0112)
+                                    if orientation == 3:
+                                        image = image.rotate(180, expand=True)
+                                    elif orientation == 6:
+                                        image = image.rotate(270, expand=True)
+                                    elif orientation == 8:
+                                        image = image.rotate(90, expand=True)
+                            except:
+                                pass  # Skip rotation if EXIF processing fails
+                            
+                            # Resize to consistent dimensions (300x200) while maintaining aspect ratio
+                            image.thumbnail((300, 200), Image.Resampling.LANCZOS)
+                            
+                            # Create a centered image on white background
+                            background = Image.new('RGB', (300, 200), 'white')
+                            # Calculate position to center the image
+                            x = (300 - image.width) // 2
+                            y = (200 - image.height) // 2
+                            background.paste(image, (x, y))
+                            
+                            st.image(background, use_container_width=True)
                             st.markdown(f"""
                             <div style="text-align: center; margin-top: 10px;">
                                 <p style="color: #d63384; font-weight: 600; margin: 5px 0;">{photo['date']}</p>
