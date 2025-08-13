@@ -22,8 +22,7 @@ st.set_page_config(
     page_title="Our Memory Locker 💕",
     page_icon="💝",
     layout="wide",
-    initial_sidebar_state="collapsed",
-    theme={"base": "light"}  # Force light theme to match CSS
+    initial_sidebar_state="collapsed"
 )
 
 # Custom CSS for romantic theme (strengthened rules for text boxes)
@@ -959,3 +958,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
