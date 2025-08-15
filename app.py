@@ -1,13 +1,13 @@
 import streamlit as st
 import json
 from datetime import datetime, date
-import base64
-from PIL import Image
 import random
 import io
 import cloudinary
 import cloudinary.uploader
+import cloudinary.api
 import requests
+from PIL import Image
 
 # Configure Cloudinary (using secrets)
 cloudinary.config(
@@ -25,7 +25,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for romantic theme (strengthened rules for text boxes)
+# Custom CSS for romantic theme
 def load_css():
     st.markdown("""
     <style>
@@ -149,7 +149,7 @@ def load_css():
         box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
     }
     
-    /* Input styling (strengthened for white bg, black text) */
+    /* Input styling */
     .stTextInput > div > div > input {
         border-radius: 15px !important;
         border: 2px solid #ffb3d1 !important;
@@ -172,7 +172,7 @@ def load_css():
         border-radius: 15px !important;
     }
     
-    /* Selectbox styling (strengthened) */
+    /* Selectbox styling */
     .stSelectbox > div > div > select {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -200,7 +200,7 @@ def load_css():
         font-weight: 600;
     }
     
-    /* General text styling (force black text) */
+    /* General text styling */
     .stApp, .stApp * {
         color: #000000 !important;
     }
@@ -265,10 +265,12 @@ def load_json(filename):
     try:
         response = requests.get(base_url)
         if response.status_code == 200:
-            return json.loads(response.text)
+            data = json.loads(response.text)
+            return data if isinstance(data, list) else []
         else:
             return []
-    except:
+    except Exception as e:
+        st.warning(f"Could not load {filename}: {str(e)}. Initializing empty list.")
         return []
 
 def save_json(filename, data):
@@ -329,10 +331,10 @@ def upload_image_to_cloudinary(image_file):
             resource_type="image",
             folder="memory_locker_photos"
         )
-        return response['secure_url']
+        return response['secure_url'], response['public_id']
     except Exception as e:
         st.error(f"Error uploading image to Cloudinary: {str(e)}")
-        return None
+        return None, None
 
 # Cloudinary video upload function
 def upload_video_to_cloudinary(video_file):
@@ -341,12 +343,21 @@ def upload_video_to_cloudinary(video_file):
         response = cloudinary.uploader.upload(
             video_file,
             resource_type="video",
-            folder="memory_locker_videos"  # Optional folder
+            folder="memory_locker_videos"
         )
-        return response['secure_url']
+        return response['secure_url'], response['public_id']
     except Exception as e:
         st.error(f"Error uploading video to Cloudinary: {str(e)}")
-        return None
+        return None, None
+
+# Delete resource from Cloudinary
+def delete_from_cloudinary(public_id, resource_type="image"):
+    try:
+        cloudinary.uploader.destroy(public_id, resource_type=resource_type)
+        return True
+    except Exception as e:
+        st.error(f"Error deleting from Cloudinary: {str(e)}")
+        return False
 
 # Initialize session state
 def init_session_state():
@@ -360,15 +371,20 @@ def init_session_state():
 # Create sample data
 def create_sample_data():
     letters = load_json("letters.json")
+    photos = load_json("photos.json")
+    videos = load_json("videos.json")
+    
     if not letters:
         sample_letters = [
             {
+                "id": 1,
                 "date": "2023-01-01",
                 "title": "New Year, New Us",
                 "content": "As we step into this new year together, I can't help but feel overwhelmed with gratitude for having you in my life. Every moment with you feels like a beautiful dream that I never want to wake up from. Your smile lights up my entire world, and your laughter is the sweetest melody I've ever heard. Here's to creating countless more memories together! 💕",
                 "created_date": "2024-01-02"
             },
             {
+                "id": 2,
                 "date": "2023-06-15",
                 "title": "Six Months of Magic",
                 "content": "It's been six incredible months since you walked into my life and changed everything. You've shown me what true love feels like, and every day with you is an adventure I treasure. From our silly inside jokes to our deep midnight conversations, every moment has been perfect because it's been with you. I love you more than words can express! 🌟💖",
@@ -376,6 +392,11 @@ def create_sample_data():
             }
         ]
         save_json("letters.json", sample_letters)
+    
+    if not photos:
+        save_json("photos.json", [])
+    if not videos:
+        save_json("videos.json", [])
 
 # Login functions
 def login_page():
@@ -436,13 +457,11 @@ def admin_mode():
     
     st.markdown("---")
     
-    # Navigation (added Videos tab)
     tab1, tab2, tab3, tab4 = st.tabs(["📷 Add Photos", "🎥 Add Videos", "💌 Write Letters", "🗑️ Manage Content"])
     
     with tab1:
         st.markdown('<h2 class="section-title">Add New Photo</h2>', unsafe_allow_html=True)
         
-        # Info about storage
         st.info("📸 Photos are stored permanently on Cloudinary! 🎉")
         
         uploaded_file = st.file_uploader("Choose a photo", type=['png', 'jpg', 'jpeg'])
@@ -452,7 +471,6 @@ def admin_mode():
         if st.button("Save Photo", key="save_photo"):
             if uploaded_file and caption:
                 try:
-                    # Show progress
                     progress_placeholder = st.empty()
                     progress_placeholder.markdown("""
                     <div class="upload-progress">
@@ -461,11 +479,9 @@ def admin_mode():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Upload image to Cloudinary
-                    url = upload_image_to_cloudinary(uploaded_file)
+                    url, public_id = upload_image_to_cloudinary(uploaded_file)
                     
-                    if url:
-                        # Save metadata with URL
+                    if url and public_id:
                         photos = load_json("photos.json")
                         photos.append({
                             "id": len(photos) + 1,
@@ -475,6 +491,7 @@ def admin_mode():
                             "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "file_size": uploaded_file.size,
                             "url": url,
+                            "public_id": public_id,
                             "storage_type": "cloudinary"
                         })
                         save_json("photos.json", photos)
@@ -482,7 +499,6 @@ def admin_mode():
                         progress_placeholder.empty()
                         st.success(f"📸 Photo '{uploaded_file.name}' saved permanently! 💕")
                         
-                        # Show preview
                         st.markdown("### Preview:")
                         st.image(url, caption=caption, width=300)
                         
@@ -492,6 +508,7 @@ def admin_mode():
                         st.error("❌ Failed to upload photo!")
                         
                 except Exception as e:
+                    progress_placeholder.empty()
                     st.error(f"❌ Error saving photo: {str(e)}")
             else:
                 st.error("Please select a photo and add a caption!")
@@ -499,7 +516,6 @@ def admin_mode():
     with tab2:
         st.markdown('<h2 class="section-title">Add New Video</h2>', unsafe_allow_html=True)
         
-        # Info about storage
         st.info("🎥 Videos are stored on Cloudinary for reliable streaming! 🚀")
         
         uploaded_file = st.file_uploader("Choose a video", type=['mp4', 'mov', 'avi'])
@@ -509,7 +525,6 @@ def admin_mode():
         if st.button("Save Video", key="save_video"):
             if uploaded_file and caption:
                 try:
-                    # Show progress
                     progress_placeholder = st.empty()
                     progress_placeholder.markdown("""
                     <div class="upload-progress">
@@ -518,11 +533,9 @@ def admin_mode():
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Upload to Cloudinary
-                    video_url = upload_video_to_cloudinary(uploaded_file)
+                    url, public_id = upload_video_to_cloudinary(uploaded_file)
                     
-                    if video_url:
-                        # Save metadata with URL
+                    if url and public_id:
                         videos = load_json("videos.json")
                         videos.append({
                             "id": len(videos) + 1,
@@ -531,7 +544,8 @@ def admin_mode():
                             "caption": caption,
                             "upload_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "file_size": uploaded_file.size,
-                            "url": video_url,
+                            "url": url,
+                            "public_id": public_id,
                             "storage_type": "cloudinary"
                         })
                         save_json("videos.json", videos)
@@ -539,9 +553,8 @@ def admin_mode():
                         progress_placeholder.empty()
                         st.success(f"🎥 Video '{uploaded_file.name}' saved to Cloudinary! 💕")
                         
-                        # Show preview
                         st.markdown("### Preview:")
-                        st.video(video_url)
+                        st.video(url)
                         st.write(caption)
                         
                         st.rerun()
@@ -550,6 +563,7 @@ def admin_mode():
                         st.error("❌ Failed to upload video!")
                         
                 except Exception as e:
+                    progress_placeholder.empty()
                     st.error(f"❌ Error saving video: {str(e)}")
             else:
                 st.error("Please select a video and add a caption!")
@@ -563,18 +577,21 @@ def admin_mode():
         
         if st.button("Save Letter", key="save_letter"):
             if title and content:
-                letters = load_json("letters.json")
-                letters.append({
-                    "id": len(letters) + 1,
-                    "date": letter_date.strftime("%Y-%m-%d"),
-                    "title": title,
-                    "content": content,
-                    "created_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
-                save_json("letters.json", letters)
-                
-                st.success("💌 Letter saved successfully! 💕")
-                st.rerun()
+                try:
+                    letters = load_json("letters.json")
+                    letters.append({
+                        "id": len(letters) + 1,
+                        "date": letter_date.strftime("%Y-%m-%d"),
+                        "title": title,
+                        "content": content,
+                        "created_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    save_json("letters.json", letters)
+                    
+                    st.success("💌 Letter saved successfully! 💕")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error saving letter: {str(e)}")
             else:
                 st.error("Please add both title and content!")
     
@@ -598,10 +615,17 @@ def admin_mode():
                     st.success("✅ Stored on Cloudinary")
                 with col3:
                     if st.button("🗑️ Delete", key=f"del_photo_{i}"):
-                        photos.pop(i)
-                        save_json("photos.json", photos)
-                        st.success("Photo deleted!")
-                        st.rerun()
+                        try:
+                            # Delete from Cloudinary
+                            if 'public_id' in photo:
+                                delete_from_cloudinary(photo['public_id'], resource_type="image")
+                            # Remove from JSON
+                            photos.pop(i)
+                            save_json("photos.json", photos)
+                            st.success("Photo deleted!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error deleting photo: {str(e)}")
                 st.divider()
         else:
             st.info("No photos to manage yet!")
@@ -623,11 +647,17 @@ def admin_mode():
                     st.success("✅ Stored on Cloudinary")
                 with col3:
                     if st.button("🗑️ Delete", key=f"del_video_{i}"):
-                        # Optional: Delete from Cloudinary if needed (requires public_id from upload response)
-                        videos.pop(i)
-                        save_json("videos.json", videos)
-                        st.success("Video deleted!")
-                        st.rerun()
+                        try:
+                            # Delete from Cloudinary
+                            if 'public_id' in video:
+                                delete_from_cloudinary(video['public_id'], resource_type="video")
+                            # Remove from JSON
+                            videos.pop(i)
+                            save_json("videos.json", videos)
+                            st.success("Video deleted!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error deleting video: {str(e)}")
                 st.divider()
         else:
             st.info("No videos to manage yet!")
@@ -646,10 +676,13 @@ def admin_mode():
                     st.write(f"*{letter['content'][:100]}...*" if len(letter['content']) > 100 else f"*{letter['content']}*")
                 with col2:
                     if st.button("🗑️ Delete", key=f"del_letter_{i}"):
-                        letters.pop(i)
-                        save_json("letters.json", letters)
-                        st.success("Letter deleted!")
-                        st.rerun()
+                        try:
+                            letters.pop(i)
+                            save_json("letters.json", letters)
+                            st.success("Letter deleted!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error deleting letter: {str(e)}")
                 st.divider()
         else:
             st.info("No letters to manage yet!")
@@ -667,7 +700,6 @@ def viewer_mode():
     
     st.markdown("---")
     
-    # Navigation (added Videos tab)
     tab1, tab2, tab3, tab4 = st.tabs(["📷 Our Photos", "🎥 Our Videos", "💌 Love Letters", "🎁 Surprise Me!"])
     
     with tab1:
@@ -698,10 +730,8 @@ def display_photos():
         """, unsafe_allow_html=True)
         return
     
-    # Display stats
     st.info(f"📊 **{len(photos)} beautiful memories** stored permanently! 💕")
     
-    # Display photos in organized grid - 3 columns
     cols_per_row = 3
     for i in range(0, len(photos), cols_per_row):
         cols = st.columns(cols_per_row)
@@ -738,10 +768,8 @@ def display_videos():
         """, unsafe_allow_html=True)
         return
     
-    # Display stats
     st.info(f"📊 **{len(videos)} beautiful video memories** stored on Cloudinary! 💕")
     
-    # Display videos in organized grid - 2 columns (videos are wider)
     cols_per_row = 2
     for i in range(0, len(videos), cols_per_row):
         cols = st.columns(cols_per_row)
@@ -810,7 +838,6 @@ def show_random_memory():
     
     all_memories = []
     
-    # Add photos to memories pool
     for photo in photos:
         if 'url' in photo:
             all_memories.append({
@@ -818,7 +845,6 @@ def show_random_memory():
                 'content': photo
             })
     
-    # Add videos to memories pool
     for video in videos:
         if 'url' in video:
             all_memories.append({
@@ -826,7 +852,6 @@ def show_random_memory():
                 'content': video
             })
     
-    # Add letters to memories pool  
     for letter in letters:
         all_memories.append({
             'type': 'letter',
@@ -837,14 +862,11 @@ def show_random_memory():
         st.warning("No memories to surprise you with yet! Add some photos, videos, or letters first. 💕")
         return
     
-    # Pick random memory
     random_memory = random.choice(all_memories)
     
     if random_memory['type'] == 'photo':
         photo = random_memory['content']
-        
         st.markdown("### 📷 Random Photo Memory!")
-        
         try:
             st.image(photo['url'], caption=f"{photo['caption']} ({photo['date']})")
         except Exception as e:
@@ -852,9 +874,7 @@ def show_random_memory():
     
     elif random_memory['type'] == 'video':
         video = random_memory['content']
-        
         st.markdown("### 🎥 Random Video Memory!")
-        
         try:
             st.video(video['url'])
             st.markdown(f"""
@@ -869,7 +889,6 @@ def show_random_memory():
     else:  # letter
         letter = random_memory['content']
         st.markdown("### 💌 Random Love Letter!")
-        
         st.markdown(f"""
         <div class="memory-card">
             <div class="memory-date">{letter['date']}</div>
@@ -880,13 +899,11 @@ def show_random_memory():
 
 # Main app function
 def main():
-    # Initialize everything
     init_session_state()
     create_sample_data()
     load_css()
     add_floating_hearts()
     
-    # Route based on login state
     if not st.session_state.logged_in:
         login_page()
     elif st.session_state.user_type == "admin":
